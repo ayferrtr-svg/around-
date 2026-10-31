@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#B8502E">
+<title>Around</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* Layout: tek sütunlu telefon uygulaması. Üstte konum, amaç, süre ve filtreler; ortada gerçek harita; altta mekan kartları. Karta basınca detay ekranı açılır. */
+:root {
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --bg: #F1E5D2;
+  --surface: #FFFFFF;
+  --ink: #2A2224;
+  --ink-2: #6B5E57;
+  --line: #DDCBB2;
+  --accent: #B8502E;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F6DFD2;
+  --pop: #1D5C7A;
+  --pop-ink: #FFFFFF;
+  --ok: #17703F;
+  --ok-soft: #DEF1E5;
+  --bad: #A93228;
+  --bad-soft: #F8E2DF;
+  --unk: #5B625F;
+  --unk-soft: #E7EBE9;
+  --cafe-bg: #F3E6D2;
+  --cafe-fg: #7A4A12;
+  --park-bg: #E2EFD9;
+  --park-fg: #3F7A2A;
+  --act-bg: #EBE0F0;
+  --act-fg: #7A4A8C;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1B1512; --surface: #271F1B; --ink: #F3EAE2; --ink-2: #BDA99B; --line: #3C2F28;
+    --accent: #E58A63; --accent-ink: #2A140B; --accent-soft: #4A2A1D; --pop: #6DB6D6; --pop-ink: #06222F;
+    --ok: #66C98E; --ok-soft: #1B3326; --bad: #F08A80; --bad-soft: #3A1F1C; --unk: #A5B0AC; --unk-soft: #26302D;
+    --cafe-bg: #3A2D1A; --cafe-fg: #E6BE86; --park-bg: #24361D; --park-fg: #9AD17F; --act-bg: #33263D; --act-fg: #D2B3E3;
+    color-scheme: dark;
+  }
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.8); }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, select, textarea, input { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.wrap { max-width: 640px; margin-inline: auto; display: flex; flex-direction: column; gap: 18px; }
+.view { display: flex; flex-direction: column; gap: 18px; }
+
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: -0.02em; margin: 0; }
+.brand::after { content: ""; display: inline-block; width: 0.28em; height: 0.28em; border-radius: 50%; background: var(--pop); margin-left: 0.08em; }
+.tagline { color: var(--ink-2); margin: 0; }
+
+.notice {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.notice p { margin: 0; color: var(--ink-2); }
+.live-btn {
+  align-self: flex-start; background: var(--accent); color: var(--accent-ink);
+  border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer;
+}
+.live-btn[disabled] { opacity: .6; cursor: default; }
+#locStatus.warn { color: var(--bad); }
+
+.panel { display: flex; flex-direction: column; gap: 14px; }
+.group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.hint { font-size: 13px; color: var(--ink-2); margin: 0; }
+.custom { display: flex; flex-wrap: wrap; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 140px; }
+.field label { font-size: 13px; color: var(--ink-2); }
+.field input, .field select, .field textarea {
+  color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; width: 100%;
+}
+.field textarea { resize: vertical; min-height: 64px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.mapbox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.mapwrap { position: relative; z-index: 0; isolation: isolate; }
+#map { height: 320px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.leaflet-container { font-family: var(--font-body); }
+.mk {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  color: var(--surface); font-size: 12px; font-weight: 600; border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.mk.cafe { background: var(--cafe-fg); }
+.mk.park { background: var(--park-fg); }
+.mk.activity { background: var(--act-fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legend i.cafe { background: var(--cafe-fg); }
+.legend i.park { background: var(--park-fg); }
+.legend i.activity { background: var(--act-fg); }
+.caption { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+.count { font-size: 13px; color: var(--ink-2); margin: 0; font-variant-numeric: tabular-nums; }
+.list { display: flex; flex-direction: column; gap: 10px; padding: 0; margin: 0; list-style: none; }
+.more { align-self: center; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; cursor: pointer;
+}
+.tile { width: 56px; height: 56px; border-radius: 10px; display: grid; place-items: center; }
+.tile svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tile.cafe { background: var(--cafe-bg); color: var(--cafe-fg); }
+.tile.park { background: var(--park-bg); color: var(--park-fg); }
+.tile.activity { background: var(--act-bg); color: var(--act-fg); }
+
+.body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.title-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.num {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; color: var(--surface); font-variant-numeric: tabular-nums;
+}
+.num.cafe { background: var(--cafe-fg); }
+.num.park { background: var(--park-fg); }
+.num.activity { background: var(--act-fg); }
+.name { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; overflow-wrap: anywhere; }
+.price { font-weight: 600; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.meta { color: var(--ink-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.mid { background: var(--cafe-bg); color: var(--cafe-fg); }
+.pill.closed { background: var(--bad-soft); color: var(--bad); }
+.pill.unk { background: var(--unk-soft); color: var(--unk); }
+.tag { font-size: 12.5px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+.confirm { font-size: 12.5px; color: var(--ink-2); }
+
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.act {
+  font-weight: 600; font-size: 13.5px; padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  cursor: pointer; text-decoration: none; display: inline-block;
+}
+.act.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.act[disabled] { opacity: .55; cursor: default; }
+
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 20px; color: var(--ink-2); }
+.foot { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+.back { align-self: flex-start; background: transparent; border: 0; padding: 4px 0; font-weight: 600; color: var(--accent); cursor: pointer; }
+.dhead { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: center; }
+.dname { font-family: var(--font-display); font-weight: 700; font-size: 24px; margin: 0; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.sec { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.sec p { margin: 0; color: var(--ink-2); }
+.fitblock { border-top: 1px solid var(--line); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.fitblock:first-of-type { border-top: 0; padding-top: 0; }
+.fitblock .fname { font-weight: 600; }
+.fitblock .fnote { font-size: 13.5px; color: var(--ink-2); }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.form .wide { grid-column: 1 / -1; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.saved { color: var(--ok); font-weight: 600; font-size: 13.5px; }
+.mynote { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; color: var(--ink); }
+</style>
+</head>
+<body>
+<noscript>Around çalışmak için JavaScript'e ihtiyaç duyuyor.</noscript>
+<div class="wrap">
+  <header>
+    <h1 class="brand">Around</h1>
+    <p class="tagline">Beklerken yakınında ne var?</p>
+  </header>
+
+  <div class="view" id="mainView">
+    <section class="notice" aria-label="Konum">
+      <p id="locStatus" role="status">Yakındaki yerleri görmek için konumuna izin ver.</p>
+      <button class="live-btn" id="locBtn" type="button">Konumumu bul</button>
+    </section>
+
+    <section class="panel" aria-label="Filtreler">
+      <div class="group">
+        <span class="label">Ne yapacaksın?</span>
+        <div class="chips" id="intentChips"></div>
+        <p class="hint" id="intentHint"></p>
+      </div>
+      <div class="group">
+        <span class="label">Ne kadar vaktin var?</span>
+        <div class="chips" id="timeChips"></div>
+        <div class="custom">
+          <div class="field">
+            <label for="durInput">Kendi süren (dakika)</label>
+            <input id="durInput" type="number" inputmode="numeric" min="1" max="720" placeholder="örn. 90">
+          </div>
+          <div class="field">
+            <label for="untilInput">Ya da şu saate kadar</label>
+            <input id="untilInput" type="time">
+          </div>
+        </div>
+        <p class="hint" id="timeHint"></p>
+      </div>
+      <div class="group">
+        <span class="label">Ne arıyorsun?</span>
+        <div class="chips" id="catChips"></div>
+      </div>
+      <div class="group">
+        <span class="label">Olsun</span>
+        <div class="chips" id="attrChips"></div>
+      </div>
+      <div class="group">
+        <span class="label">Fiyat</span>
+        <div class="chips" id="priceChips"></div>
+      </div>
+      <div class="group">
+        <span class="label">Sırala</span>
+        <div class="chips" id="sortChips"></div>
+      </div>
+    </section>
+
+    <section class="mapbox" id="mapBox" aria-label="Harita" hidden>
+      <span class="label">Nerede?</span>
+      <div class="mapwrap"><div id="map"></div></div>
+      <div class="legend"><span><i class="cafe"></i>Kafe</span><span><i class="park"></i>Park</span><span><i class="activity"></i>Aktivite</span></div>
+    </section>
+
+    <p class="count" id="count"></p>
+    <ul class="list" id="list"></ul>
+    <button class="act more" id="moreBtn" type="button" hidden>Daha fazla göster</button>
+
+    <p class="foot">Mekan verisi © OpenStreetMap katkıcıları. Fiyat, priz, Wi-Fi kalitesi, gürültü ve masa bilgileri OpenStreetMap'te genelde yok. Bunları şimdilik mekan detayından kendin ekleyebilirsin, bilgi sadece bu cihazda saklanır.</p>
+  </div>
+
+  <div class="view" id="detailView" hidden></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var INTENTS = [
+    { key: 'study', label: 'Ders çalışacağım', short: 'Ders için' },
+    { key: 'chat', label: 'Arkadaşlarla sohbet', short: 'Sohbet için' },
+    { key: 'calm', label: 'Sakin vakit geçireceğim', short: 'Sakin vakit için' },
+    { key: 'move', label: 'Biraz hareket', short: 'Hareket için' }
+  ];
+  var INTENT_HINT = {
+    study: 'Masa başında priz ve iyi Wi-Fi öncelikli. Priz ya da Wi-Fi olmadığı bilinen yerler ve parklar gösterilmiyor. Sessizlik artı puan, ama gürültü eleme sebebi değil. Bilgisi girilmemiş yerler listede kalır.',
+    chat: 'Grup masası ve rahat oturma düzeni olan yerler öne çıkıyor. Sessiz ya da gürültülü olması puanı etkilemiyor.',
+    calm: 'Sessiz yerler ve parklar öne çıkıyor.',
+    move: 'Sadece park ve aktiviteler gösteriliyor.'
+  };
+  var LEVEL_TEXT = { high: 'Yüksek uygunluk', mid: 'Orta uygunluk', low: 'Düşük uygunluk' };
+  var LEVEL_PILL = { high: 'ok', mid: 'mid', low: 'unk' };
+  var CATS = [{ key: 'cafe', label: 'Kafe' }, { key: 'park', label: 'Park' }, { key: 'activity', label: 'Aktivite' }];
+  var TIMES = [{ min: 45, label: '45 dk' }, { min: 60, label: '1 saat' }, { min: 120, label: '2 saat' }, { min: 180, label: '3 saat' }];
+  var ATTRS = [
+    { key: 'open', label: 'Şimdi açık' },
+    { key: 'plug', label: 'Masa başında priz' },
+    { key: 'wifi', label: 'İyi Wi-Fi' },
+    { key: 'quiet', label: 'Sakin' }
+  ];
+  var PRICES = [{ key: 0, label: 'Ücretsiz' }, { key: 1, label: '₺' }, { key: 2, label: '₺₺' }, { key: 3, label: '₺₺₺' }];
+  var SORTS = [{ key: 'dist', label: 'Mesafe' }, { key: 'rating', label: 'Puan' }, { key: 'price', label: 'Fiyat' }];
+  var SORT_TEXT = { fit: 'amacına uygunluğa göre', dist: 'en yakından uzağa', rating: 'puanı yüksek olandan başlayarak', price: 'ucuzdan pahalıya' };
+  var ICONS = {
+    cafe: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V8z"/><path d="M16 9h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3v2M12 3v2"/></svg>',
+    park: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M12 15v6M9 21h6"/></svg>',
+    activity: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg>'
+  };
+  var CAT_LABEL = { cafe: 'Kafe', park: 'Park', activity: 'Aktivite' };
+  var DIRS = ['Kuzey', 'Kuzeydoğu', 'Doğu', 'Güneydoğu', 'Güney', 'Güneybatı', 'Batı', 'Kuzeybatı'];
+  var STAY_MIN = 30;
+  var WALK_M_PER_MIN = 80;
+  var PAGE = 40;
+  var LOCAL_KEY = 'around-local-v1';
+  var ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+
+  var state = {
+    intent: null, minutes: 60, custom: false,
+    cats: { cafe: true, park: true, activity: true },
+    open: false, plug: false, wifi: false, quiet: false,
+    prices: { 0: false, 1: false, 2: false, 3: false },
+    sort: 'dist', detail: null, scrollY: 0, limit: PAGE
+  };
+  var pos = null;
+  var rawPlaces = [];
+  var places = [];
+  var local = {};
+  var map = null, layer = null;
+  var busy = false;
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fmtTime(m) {
+    var h = Math.floor(m / 60) % 24, mm = m % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  function fmtDist(d) {
+    if (d < 1000) return (Math.round(d / 10) * 10) + ' m';
+    return (d / 1000).toFixed(1).replace('.', ',') + ' km';
+  }
+  function fmtDur(m) {
+    var h = Math.floor(m / 60), r = m % 60;
+    if (!h) return r + ' dk';
+    return h + ' saat' + (r ? ' ' + r + ' dk' : '');
+  }
+  function walkMin(d) { return Math.max(1, Math.round(d / WALK_M_PER_MIN)); }
+  function maxWalk() { return Math.max(0, Math.floor((state.minutes - STAY_MIN) / 2)); }
+  function dirName(b) { return DIRS[Math.round(((b % 360) + 360) % 360 / 45) % 8]; }
+  function nn(v) { return v == null ? 0 : v; }
+  function priceLabel(p) {
+    if (p.price === 0) return 'Ücretsiz';
+    if (p.price > 0) return new Array(p.price + 1).join('₺');
+    return '';
+  }
+
+  /* OH-START */
+  var DAY_IDX = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
+  var DAY_ORDER = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  var DAY_TR = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+  function expandDays(str) {
+    var out = [];
+    var parts = str.split(',');
+    for (var i = 0; i < parts.length; i++) {
+      var t = parts[i].trim();
+      if (!t) continue;
+      var m = /^(Mo|Tu|We|Th|Fr|Sa|Su)(?:\s*-\s*(Mo|Tu|We|Th|Fr|Sa|Su))?$/.exec(t);
+      if (!m) return null;
+      var a = DAY_ORDER.indexOf(m[1]);
+      var b = m[2] ? DAY_ORDER.indexOf(m[2]) : a;
+      var k = a;
+      for (var n = 0; n < 7; n++) {
+        out.push(DAY_IDX[DAY_ORDER[k]]);
+        if (k === b) break;
+        k = (k + 1) % 7;
+      }
+    }
+    return out;
+  }
+  function parseOpeningHours(str) {
+    if (!str) return null;
+    str = String(str).trim();
+    if (str === '24/7') return { always: true };
+    var week = [null, null, null, null, null, null, null];
+    var parts = str.split(';');
+    var any = false;
+    for (var i = 0; i < parts.length; i++) {
+      var part = parts[i].trim();
+      if (!part) continue;
+      if (/^(PH|SH)\b/.test(part)) continue;
+      var m = /^([A-Za-z,\- ]*?)\s*((?:\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}(?:\s*,\s*)?)+|off|closed)$/.exec(part);
+      if (!m) return null;
+      var days = m[1].trim() ? expandDays(m[1].trim()) : [0, 1, 2, 3, 4, 5, 6];
+      if (!days) return null;
+      var ranges = [];
+      if (m[2] !== 'off' && m[2] !== 'closed') {
+        var re = /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g, r;
+        while ((r = re.exec(m[2])) !== null) {
+          var o = +r[1] * 60 + +r[2], c = +r[3] * 60 + +r[4];
+          if (c <= o) c += 1440;
+          ranges.push([o, c]);
+        }
+      }
+      for (var d = 0; d < days.length; d++) week[days[d]] = ranges;
+      any = true;
+    }
+    return any ? { week: week } : null;
+  }
+  function openStatus(oh, now) {
+    if (!oh) return { k: 'unk', t: 'Saat bilgisi yok' };
+    if (oh.always) return { k: 'ok', t: 'Her zaman açık' };
+    var day = now.getDay(), m = now.getHours() * 60 + now.getMinutes();
+    var today = oh.week[day] || [], prev = oh.week[(day + 6) % 7] || [];
+    var i;
+    for (i = 0; i < prev.length; i++) {
+      if (prev[i][1] > 1440 && m < prev[i][1] - 1440) return { k: 'ok', t: 'Açık · kapanış ' + fmtTime(prev[i][1] - 1440) };
+    }
+    for (i = 0; i < today.length; i++) {
+      if (m >= today[i][0] && m < today[i][1]) return { k: 'ok', t: 'Açık · kapanış ' + fmtTime(today[i][1]) };
+    }
+    for (i = 0; i < today.length; i++) {
+      if (today[i][0] > m) return { k: 'closed', t: 'Kapalı · açılış ' + fmtTime(today[i][0]) };
+    }
+    for (var n = 1; n <= 7; n++) {
+      var dd = (day + n) % 7, r = oh.week[dd] || [];
+      if (r.length) return { k: 'closed', t: 'Kapalı · ' + DAY_TR[dd] + ' ' + fmtTime(r[0][0]) };
+    }
+    return { k: 'closed', t: 'Kapalı' };
+  }
+  /* OH-END */
+
+  function status(p) { return openStatus(p.oh, new Date()); }
+
+  /* Özellik metinleri ve amaca uygunluk puanı. Bilinmeyen (null) değer sıfır puan alır ama mekanı elemez. */
+  function plugText(l) { return l === 2 ? 'Masa başında priz' : l === 1 ? 'Bazı masalarda priz' : l === 0 ? 'Priz yok' : null; }
+  function wifiText(l) { return l === 2 ? 'İyi Wi-Fi' : l === 1 ? 'Wi-Fi var' : l === 0 ? 'Wi-Fi yok' : null; }
+  function noiseText(n) { return n === 1 ? 'Sakin' : n === 2 ? 'Orta ses' : n === 3 ? 'Gürültülü' : null; }
+  function deskText(d) { return d === 2 ? 'Geniş masalar' : d === 1 ? 'Küçük masalar' : null; }
+  function tagsFor(p) {
+    var t = [];
+    [plugText(p.plugLevel), wifiText(p.wifiQ), deskText(p.desk), noiseText(p.noise)].forEach(function (x) { if (x) t.push(x); });
+    if (p.group) t.push('Grup masası');
+    return t;
+  }
+  function lvl(score, hi, mid) { return score >= hi ? 'high' : score >= mid ? 'mid' : 'low'; }
+  function intentShort(key) {
+    for (var i = 0; i < INTENTS.length; i++) { if (INTENTS[i].key === key) return INTENTS[i].short; }
+    return '';
+  }
+  function fitFor(p, intent) {
+    var out = { score: 0, level: 'low', hidden: false, notes: [] };
+    if (intent === 'study') {
+      if (p.cat === 'park' || p.plugLevel === 0 || p.wifiQ === 0) {
+        out.hidden = true;
+        out.notes.push(p.cat === 'park' ? 'Masa ve priz olmayan açık alan' : (p.plugLevel === 0 ? 'Priz yok' : 'Wi-Fi yok'));
+        return out;
+      }
+      out.score = nn(p.plugLevel) * 3 + nn(p.wifiQ) * 3 + nn(p.desk) * 2 + (p.noise === 1 ? 2 : p.noise === 2 ? 1 : 0);
+      out.level = lvl(out.score, 14, 9);
+      out.notes.push(p.plugLevel == null ? 'Priz bilgisi henüz yok' : plugText(p.plugLevel));
+      out.notes.push(p.wifiQ == null ? 'Wi-Fi bilgisi henüz yok' : wifiText(p.wifiQ));
+      if (deskText(p.desk)) out.notes.push(deskText(p.desk));
+      if (noiseText(p.noise)) out.notes.push(noiseText(p.noise));
+    } else if (intent === 'chat') {
+      out.score = (p.group ? 4 : 0) + nn(p.desk);
+      out.level = lvl(out.score, 5, 2);
+      out.notes.push(p.group ? 'Grup masası var' : p.group === false ? 'Büyük grup için dar olabilir' : 'Grup bilgisi henüz yok');
+      if (noiseText(p.noise)) out.notes.push(noiseText(p.noise));
+    } else if (intent === 'calm') {
+      out.score = (p.noise === 1 ? 5 : p.noise === 2 ? 2 : 0) + (p.cat === 'park' ? 2 : 0);
+      out.level = lvl(out.score, 5, 2);
+      if (noiseText(p.noise)) out.notes.push(noiseText(p.noise));
+      if (p.cat === 'park') out.notes.push('Açık hava');
+    } else if (intent === 'move') {
+      if (p.cat === 'cafe') { out.hidden = true; out.notes.push('Oturma yeri'); return out; }
+      out.score = p.cat === 'park' ? 4 : 3;
+      out.level = p.cat === 'park' ? 'high' : 'mid';
+      out.notes.push(p.cat === 'park' ? 'Yürüyüş ve açık hava' : 'Aktivite');
+    }
+    return out;
+  }
+
+  /* Cihazda saklanan kişisel bilgiler */
+  function loadLocal() {
+    try { local = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}') || {}; } catch (e) { local = {}; }
+  }
+  function saveLocal() {
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(local)); return true; } catch (e) { return false; }
+  }
+  function rebuildPlaces() {
+    places = rawPlaces.map(function (r) {
+      var p = {};
+      for (var k in r) p[k] = r[k];
+      var l = local[r.id];
+      if (l) {
+        ['plugLevel', 'wifiQ', 'noise', 'desk', 'price'].forEach(function (key) { if (l[key] != null) p[key] = l[key]; });
+        if (l.group != null) p.group = l.group;
+        p.note = l.note || '';
+      }
+      return p;
+    });
+  }
+  function placeById(id) {
+    for (var i = 0; i < places.length; i++) { if (places[i].id === id) return places[i]; }
+    return null;
+  }
+
+  /* Konum ve OpenStreetMap verisi */
+  function haversine(lat1, lon1, lat2, lon2) {
+    var R = 6371000, rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  function bearingTo(lat1, lon1, lat2, lon2) {
+    var r = Math.PI / 180;
+    var y = Math.sin((lon2 - lon1) * r) * Math.cos(lat2 * r);
+    var x = Math.cos(lat1 * r) * Math.sin(lat2 * r) - Math.sin(lat1 * r) * Math.cos(lat2 * r) * Math.cos((lon2 - lon1) * r);
+    return (Math.atan2(y, x) / r + 360) % 360;
+  }
+  function fromOsm(e, lat, lon) {
+    var t = e.tags || {};
+    if (!t.name) return null;
+    var la = e.lat != null ? e.lat : (e.center && e.center.lat);
+    var lo = e.lon != null ? e.lon : (e.center && e.center.lon);
+    if (la == null || lo == null) return null;
+    var cat = t.amenity === 'cafe' ? 'cafe' : (t.leisure ? 'park' : 'activity');
+    var wifi = null;
+    if (t.internet_access) wifi = /^(wlan|yes|wifi|wired)$/.test(t.internet_access) ? 1 : (t.internet_access === 'no' ? 0 : null);
+    var oh = null;
+    try { oh = parseOpeningHours(t.opening_hours); } catch (err) { oh = null; }
+    return {
+      id: String(e.type || 'n').charAt(0) + e.id, name: t.name, cat: cat, lat: la, lon: lo,
+      dist: haversine(lat, lon, la, lo), bearing: bearingTo(lat, lon, la, lo), oh: oh,
+      price: null, plugLevel: null, wifiQ: wifi, noise: null, desk: null, group: null,
+      rating: null, reviews: 0, note: ''
+    };
+  }
+  function dedupe(list) {
+    var out = [];
+    list.forEach(function (p) {
+      for (var i = 0; i < out.length; i++) {
+        if (out[i].name === p.name && haversine(out[i].lat, out[i].lon, p.lat, p.lon) < 80) return;
+      }
+      out.push(p);
+    });
+    return out;
+  }
+  function getPos() {
+    return new Promise(function (res, rej) {
+      if (!navigator.geolocation) { rej({ code: 0 }); return; }
+      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    });
+  }
+  async function queryOverpass(lat, lon) {
+    var R = 2500;
+    var around = '(around:' + R + ',' + lat + ',' + lon + ')';
+    var q = '[out:json][timeout:25];(' +
+      'nwr["amenity"="cafe"]' + around + ';' +
+      'nwr["leisure"~"^(park|garden|playground)$"]["name"]' + around + ';' +
+      'nwr["tourism"~"^(museum|gallery|attraction)$"]["name"]' + around + ';' +
+      ');out center tags;';
+    var lastErr = null;
+    for (var i = 0; i < ENDPOINTS.length; i++) {
+      var ctl = new AbortController();
+      var timer = setTimeout(function () { ctl.abort(); }, 28000);
+      try {
+        var r = await fetch(ENDPOINTS[i], {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'data=' + encodeURIComponent(q),
+          signal: ctl.signal
+        });
+        if (!r.ok) throw new Error('http ' + r.status);
+        var j = await r.json();
+        clearTimeout(timer);
+        return j.elements || [];
+      } catch (e) {
+        clearTimeout(timer);
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('ağ');
+  }
+
+  function setStatus(text, warn) {
+    var n = $('locStatus');
+    n.textContent = text;
+    n.className = warn ? 'warn' : '';
+  }
+  async function findPlaces() {
+    if (busy) return;
+    busy = true;
+    var btn = $('locBtn');
+    btn.disabled = true;
+    setStatus('Konum alınıyor…');
+    var got;
+    try {
+      got = await getPos();
+    } catch (e) {
+      var msg = e && e.code === 1 ? 'Konum izni verilmedi. Tarayıcı ayarlarından bu site için konuma izin verip tekrar dene.'
+        : e && e.code === 3 ? 'Konum zaman aşımına uğradı. Açık havada ya da konum servisi açıkken tekrar dene.'
+        : 'Konum alınamadı. Cihazının konum servisinin açık olduğundan emin ol.';
+      setStatus(msg, true);
+      btn.disabled = false;
+      busy = false;
+      return;
+    }
+    pos = { lat: got.coords.latitude, lon: got.coords.longitude, acc: Math.round(got.coords.accuracy || 0) };
+    setStatus('Çevredeki yerler aranıyor…');
+    try {
+      var elements = await queryOverpass(pos.lat, pos.lon);
+      var found = dedupe(elements.map(function (e) { return fromOsm(e, pos.lat, pos.lon); }).filter(Boolean));
+      found.sort(function (a, b) { return a.dist - b.dist; });
+      rawPlaces = found;
+      rebuildPlaces();
+      state.limit = PAGE;
+      setStatus(found.length + ' yer bulundu · konum doğruluğu yaklaşık ' + pos.acc + ' m');
+    } catch (e) {
+      setStatus('Yakındaki yerler alınamadı. Sunucu meşgul olabilir, biraz sonra tekrar dene.', true);
+    }
+    btn.textContent = 'Konumu yenile';
+    btn.disabled = false;
+    busy = false;
+    render();
+  }
+
+  /* Filtreler */
+  function chip(text, pressed, onClick) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = text;
+    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function fillChips(id, items, isOn, toggle) {
+    var h = $(id); h.textContent = '';
+    items.forEach(function (o) {
+      h.appendChild(chip(o.label, isOn(o), function () { toggle(o); state.limit = PAGE; renderControls(); renderMain(); }));
+    });
+  }
+  function setMinutes(m, custom) {
+    state.minutes = m;
+    state.custom = custom;
+    state.limit = PAGE;
+    renderControls();
+    renderMain();
+  }
+  function renderControls() {
+    fillChips('intentChips', INTENTS, function (o) { return state.intent === o.key; }, function (o) {
+      if (state.intent === o.key) {
+        state.intent = null;
+        if (state.sort === 'fit') state.sort = 'dist';
+      } else {
+        state.intent = o.key;
+        state.sort = 'fit';
+      }
+    });
+    $('intentHint').textContent = state.intent ? INTENT_HINT[state.intent] : 'İstersen seç, liste buna göre sıralanır.';
+    var t = $('timeChips'); t.textContent = '';
+    TIMES.forEach(function (o) {
+      t.appendChild(chip(o.label, !state.custom && state.minutes === o.min, function () {
+        $('durInput').value = '';
+        $('untilInput').value = '';
+        setMinutes(o.min, false);
+      }));
+    });
+    $('timeHint').textContent = 'Toplam ' + fmtDur(state.minutes) + ' var. Gidiş-dönüş yürüyüş ve en az ' + STAY_MIN + ' dk oturma sayılıyor, tek yön en fazla ' + maxWalk() + ' dk yürüyüş.';
+    fillChips('catChips', CATS, function (o) { return state.cats[o.key]; }, function (o) { state.cats[o.key] = !state.cats[o.key]; });
+    fillChips('attrChips', ATTRS, function (o) { return state[o.key]; }, function (o) { state[o.key] = !state[o.key]; });
+    fillChips('priceChips', PRICES, function (o) { return state.prices[o.key]; }, function (o) { state.prices[o.key] = !state.prices[o.key]; });
+    var sorts = state.intent ? [{ key: 'fit', label: 'Uygunluk' }].concat(SORTS) : SORTS;
+    fillChips('sortChips', sorts, function (o) { return state.sort === o.key; }, function (o) { state.sort = o.key; });
+  }
+  function cmp(a, b) {
+    if (state.sort === 'fit' && state.intent) {
+      var fa = fitFor(a, state.intent).score, fb = fitFor(b, state.intent).score;
+      if (fa !== fb) return fb - fa;
+    } else if (state.sort === 'rating') {
+      var ra = a.rating == null ? -1 : a.rating, rb = b.rating == null ? -1 : b.rating;
+      if (ra !== rb) return rb - ra;
+    } else if (state.sort === 'price') {
+      var pa = a.price == null ? 9 : a.price, pb = b.price == null ? 9 : b.price;
+      if (pa !== pb) return pa - pb;
+    }
+    return a.dist - b.dist;
+  }
+  function getVisible() {
+    var lim = maxWalk();
+    var anyPrice = state.prices[0] || state.prices[1] || state.prices[2] || state.prices[3];
+    return places.filter(function (p) {
+      if (!state.cats[p.cat]) return false;
+      if (walkMin(p.dist) > lim) return false;
+      if (state.intent && fitFor(p, state.intent).hidden) return false;
+      if (state.plug && nn(p.plugLevel) < 2) return false;
+      if (state.wifi && nn(p.wifiQ) < 2) return false;
+      if (state.quiet && p.noise !== 1) return false;
+      if (state.open && status(p).k !== 'ok') return false;
+      if (anyPrice && (p.price == null || !state.prices[p.price])) return false;
+      return true;
+    }).sort(cmp);
+  }
+
+  function directionsAction(p) {
+    var a = el('a', 'act primary', 'Yol tarifi');
+    a.href = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon + '&travelmode=walking';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    return a;
+  }
+
+  function card(p, n) {
+    var li = el('li', 'card');
+    var tile = el('div', 'tile ' + p.cat);
+    tile.innerHTML = ICONS[p.cat];
+    li.appendChild(tile);
+
+    var body = el('div', 'body');
+    var top = el('div', 'top');
+    var tl = el('div', 'title-line');
+    tl.appendChild(el('span', 'num ' + p.cat, String(n)));
+    tl.appendChild(el('h2', 'name', p.name));
+    top.appendChild(tl);
+    var pl = priceLabel(p);
+    if (pl) top.appendChild(el('span', 'price', pl));
+    body.appendChild(top);
+
+    body.appendChild(el('div', 'meta', CAT_LABEL[p.cat] + ' · ' + fmtDist(p.dist) + ' · ' + dirName(p.bearing) + ' · ' + walkMin(p.dist) + ' dk yürüyüş'));
+
+    var st = status(p);
+    var row = el('div', 'row');
+    if (state.intent) {
+      var f = fitFor(p, state.intent);
+      row.appendChild(el('span', 'pill ' + LEVEL_PILL[f.level], intentShort(state.intent) + ': ' + LEVEL_TEXT[f.level]));
+    }
+    row.appendChild(el('span', 'pill ' + st.k, st.t));
+    body.appendChild(row);
+
+    var tags = tagsFor(p);
+    if (tags.length) {
+      var trow = el('div', 'row');
+      tags.forEach(function (t) { trow.appendChild(el('span', 'tag', t)); });
+      body.appendChild(trow);
+    }
+    if (state.intent === 'study' && (p.plugLevel == null || p.wifiQ == null)) {
+      body.appendChild(el('div', 'confirm', 'Priz ya da Wi-Fi bilgisi henüz girilmemiş.'));
+    }
+
+    var acts = el('div', 'acts');
+    var d = el('button', 'act', 'Detaylar');
+    d.type = 'button';
+    acts.appendChild(d);
+    acts.appendChild(directionsAction(p));
+    body.appendChild(acts);
+
+    li.appendChild(body);
+    li.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('a')) return;
+      openDetail(p.id);
+    });
+    return li;
+  }
+
+  /* Gerçek harita (Leaflet + OpenStreetMap) */
+  function ensureMap() {
+    if (map || typeof L === 'undefined') return;
+    map = L.map('map', { zoomControl: true });
+    map.attributionControl.setPrefix(false);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+    map.setView([39, 35], 5);
+  }
+  function drawMap(items) {
+    if (!pos) { $('mapBox').hidden = true; return; }
+    if (typeof L === 'undefined') { $('mapBox').hidden = true; return; }
+    $('mapBox').hidden = false;
+    ensureMap();
+    layer.clearLayers();
+    var pts = [[pos.lat, pos.lon]];
+    L.circle([pos.lat, pos.lon], { radius: Math.max(pos.acc, 10), color: '#1D5C7A', weight: 1, fillColor: '#1D5C7A', fillOpacity: 0.12 }).addTo(layer);
+    L.circleMarker([pos.lat, pos.lon], { radius: 8, color: '#FFFFFF', weight: 3, fillColor: '#1D5C7A', fillOpacity: 1 }).addTo(layer);
+    items.forEach(function (it) {
+      var icon = L.divIcon({ className: '', html: '<span class="mk ' + it.p.cat + '">' + it.n + '</span>', iconSize: [28, 28], iconAnchor: [14, 14] });
+      var mk = L.marker([it.p.lat, it.p.lon], { icon: icon, title: it.p.name }).addTo(layer);
+      mk.on('click', function () { openDetail(it.p.id); });
+      pts.push([it.p.lat, it.p.lon]);
+    });
+    map.invalidateSize();
+    if (pts.length > 1) map.fitBounds(pts, { padding: [28, 28], maxZoom: 16 });
+    else map.setView(pts[0], 16);
+  }
+
+  function renderMain() {
+    var out = getVisible();
+    var list = $('list'); list.textContent = '';
+    var shown = out.slice(0, state.limit);
+    var sortKey = (state.sort === 'fit' && !state.intent) ? 'dist' : state.sort;
+    if (!pos) {
+      $('count').textContent = '';
+      list.appendChild(el('li', 'empty', 'Konumunu bulunca yakındaki kafeler, parklar ve aktiviteler burada görünecek.'));
+      $('moreBtn').hidden = true;
+      drawMap([]);
+      return;
+    }
+    $('count').textContent = out.length + ' yer · ' + SORT_TEXT[sortKey];
+    if (!out.length) {
+      list.appendChild(el('li', 'empty', rawPlaces.length ? 'Bu süreye, amaca ve filtrelere uyan yer yok. Süreyi uzat ya da filtrelerden bazılarını kaldır.' : 'Çevrende kayıtlı yer bulunamadı.'));
+    } else {
+      shown.forEach(function (p, i) { list.appendChild(card(p, i + 1)); });
+    }
+    $('moreBtn').hidden = out.length <= shown.length;
+    drawMap(shown.map(function (p, i) { return { p: p, n: i + 1 }; }));
+  }
+
+  /* Detay ekranı */
+  function section(title) {
+    var s = el('section', 'sec');
+    s.appendChild(el('span', 'label', title));
+    return s;
+  }
+  function field(id, label, options, current) {
+    var w = el('div', 'field');
+    var l = el('label', null, label);
+    l.setAttribute('for', id);
+    var s = document.createElement('select');
+    s.id = id;
+    options.forEach(function (o) {
+      var op = document.createElement('option');
+      op.value = o[0];
+      op.textContent = o[1];
+      if (String(current == null ? '' : current) === o[0]) op.selected = true;
+      s.appendChild(op);
+    });
+    w.appendChild(l);
+    w.appendChild(s);
+    return w;
+  }
+  function intOrNull(id) {
+    var v = $(id).value;
+    return v === '' ? null : parseInt(v, 10);
+  }
+
+  function renderDetail(p, savedMsg) {
+    var v = $('detailView'); v.textContent = '';
+    var back = el('button', 'back', '← Listeye dön');
+    back.type = 'button';
+    back.addEventListener('click', closeDetail);
+    v.appendChild(back);
+
+    var head = el('div', 'dhead');
+    var tile = el('div', 'tile ' + p.cat);
+    tile.innerHTML = ICONS[p.cat];
+    head.appendChild(tile);
+    var ht = el('div', 'body');
+    ht.appendChild(el('h2', 'dname', p.name));
+    ht.appendChild(el('div', 'meta', CAT_LABEL[p.cat] + ' · ' + fmtDist(p.dist) + ' · Yön: ' + dirName(p.bearing) + ' · ' + walkMin(p.dist) + ' dk yürüyüş'));
+    head.appendChild(ht);
+    v.appendChild(head);
+
+    var st = status(p);
+    var row = el('div', 'row');
+    row.appendChild(el('span', 'pill ' + st.k, st.t));
+    var pl = priceLabel(p);
+    if (pl) row.appendChild(el('span', 'tag', pl));
+    tagsFor(p).forEach(function (t) { row.appendChild(el('span', 'tag', t)); });
+    v.appendChild(row);
+    if (p.note) v.appendChild(el('div', 'mynote', 'Notum: ' + p.note));
+
+    var acts = el('div', 'acts');
+    acts.appendChild(directionsAction(p));
+    v.appendChild(acts);
+
+    var fit = section('Ne için uygun?');
+    ['study', 'chat', 'calm'].forEach(function (key) {
+      var f = fitFor(p, key);
+      var blk = el('div', 'fitblock');
+      var r = el('div', 'row');
+      r.appendChild(el('span', 'fname', intentShort(key)));
+      r.appendChild(f.hidden ? el('span', 'pill unk', 'Uygun değil') : el('span', 'pill ' + LEVEL_PILL[f.level], LEVEL_TEXT[f.level]));
+      blk.appendChild(r);
+      if (f.notes.length) blk.appendChild(el('div', 'fnote', f.notes.join(' · ')));
+      fit.appendChild(blk);
+    });
+    v.appendChild(fit);
+
+    var info = section('Bilgileri sen ekle');
+    info.appendChild(el('p', null, 'Bu yerde priz, Wi-Fi, ses ve masa durumu nasıl? Girdiğin bilgiler sıralamayı hemen etkiler. Şimdilik sadece bu cihazda saklanıyor, hesap sistemi gelince herkesle paylaşılacak.'));
+    var form = el('div', 'form');
+    var l = local[p.id] || {};
+    form.appendChild(field('fPlug', 'Masa başında priz', [['', 'Bilmiyorum'], ['0', 'Yok'], ['1', 'Bazı masalarda'], ['2', 'Çoğu masada']], l.plugLevel));
+    form.appendChild(field('fWifi', 'Wi-Fi', [['', 'Bilmiyorum'], ['0', 'Yok'], ['1', 'Var'], ['2', 'İyi çekiyor']], l.wifiQ));
+    form.appendChild(field('fNoise', 'Ortam sesi', [['', 'Bilmiyorum'], ['1', 'Sakin'], ['2', 'Orta'], ['3', 'Gürültülü']], l.noise));
+    form.appendChild(field('fDesk', 'Masalar', [['', 'Bilmiyorum'], ['1', 'Küçük masalar'], ['2', 'Geniş masalar']], l.desk));
+    form.appendChild(field('fPrice', 'Fiyat seviyesi', [['', 'Bilmiyorum'], ['0', 'Ücretsiz'], ['1', '₺ uygun'], ['2', '₺₺ orta'], ['3', '₺₺₺ pahalı']], l.price));
+    var gw = el('div', 'field');
+    var gl = el('label', 'check');
+    var gc = document.createElement('input');
+    gc.type = 'checkbox';
+    gc.id = 'fGroup';
+    gc.checked = l.group === true;
+    gl.appendChild(gc);
+    gl.appendChild(document.createTextNode('Grup masası var'));
+    gw.appendChild(el('span', 'label', 'Grup'));
+    gw.appendChild(gl);
+    form.appendChild(gw);
+    var nw = el('div', 'field wide');
+    var nl = el('label', null, 'Notum (sadece sen görürsün)');
+    nl.setAttribute('for', 'fNote');
+    var ta = document.createElement('textarea');
+    ta.id = 'fNote';
+    ta.maxLength = 300;
+    ta.value = l.note || '';
+    nw.appendChild(nl);
+    nw.appendChild(ta);
+    form.appendChild(nw);
+    info.appendChild(form);
+
+    var ar = el('div', 'acts');
+    var save = el('button', 'act primary', 'Kaydet');
+    save.type = 'button';
+    save.addEventListener('click', function () {
+      var rec = {
+        plugLevel: intOrNull('fPlug'), wifiQ: intOrNull('fWifi'), noise: intOrNull('fNoise'),
+        desk: intOrNull('fDesk'), price: intOrNull('fPrice'),
+        group: $('fGroup').checked ? true : null, note: $('fNote').value.trim()
+      };
+      var empty = rec.plugLevel == null && rec.wifiQ == null && rec.noise == null && rec.desk == null && rec.price == null && rec.group == null && !rec.note;
+      if (empty) delete local[p.id]; else local[p.id] = rec;
+      var ok = saveLocal();
+      rebuildPlaces();
+      renderDetail(placeById(p.id) || p, ok ? 'Kaydedildi.' : 'Kaydedilemedi, tarayıcı depolamayı engelliyor olabilir.');
+    });
+    var reset = el('button', 'act', 'Bilgileri sil');
+    reset.type = 'button';
+    reset.addEventListener('click', function () {
+      delete local[p.id];
+      saveLocal();
+      rebuildPlaces();
+      renderDetail(placeById(p.id) || p, 'Silindi.');
+    });
+    ar.appendChild(save);
+    ar.appendChild(reset);
+    if (savedMsg) ar.appendChild(el('span', 'saved', savedMsg));
+    info.appendChild(ar);
+    v.appendChild(info);
+
+    var soon = section('Fotoğraflar, menü ve yorumlar');
+    soon.appendChild(el('p', null, 'Herkesin fotoğraf, menü ve yorum ekleyebilmesi için hesap sistemi gerekiyor. Sonraki adımda eklenecek.'));
+    v.appendChild(soon);
+  }
+
+  function render() {
+    var p = state.detail ? placeById(state.detail) : null;
+    if (p) {
+      $('mainView').hidden = true;
+      $('detailView').hidden = false;
+      renderDetail(p);
+    } else {
+      state.detail = null;
+      $('detailView').hidden = true;
+      $('mainView').hidden = false;
+      renderMain();
+    }
+  }
+  function openDetail(id) {
+    state.scrollY = window.scrollY || 0;
+    state.detail = id;
+    try { location.hash = 'yer-' + id; } catch (e) {}
+    render();
+    window.scrollTo(0, 0);
+  }
+  function closeDetail() {
+    state.detail = null;
+    try { location.hash = 'liste'; } catch (e) {}
+    render();
+    window.scrollTo(0, state.scrollY || 0);
+  }
+  window.addEventListener('hashchange', function () {
+    var h = location.hash || '';
+    var id = h.indexOf('#yer-') === 0 ? h.slice(5) : null;
+    if (id !== state.detail) { state.detail = id; render(); }
+  });
+
+  $('durInput').addEventListener('input', function () {
+    var v = parseInt(this.value, 10);
+    $('untilInput').value = '';
+    if (!(v > 0)) return;
+    setMinutes(Math.min(v, 720), true);
+  });
+  $('untilInput').addEventListener('input', function () {
+    if (!this.value) return;
+    var p = this.value.split(':');
+    var target = (+p[0]) * 60 + (+p[1]);
+    var now = new Date();
+    var diff = target - (now.getHours() * 60 + now.getMinutes());
+    if (diff <= 0) diff += 1440;
+    $('durInput').value = '';
+    setMinutes(Math.min(diff, 720), true);
+  });
+  $('moreBtn').addEventListener('click', function () { state.limit += PAGE; renderMain(); });
+  $('locBtn').addEventListener('click', findPlaces);
+
+  loadLocal();
+  renderControls();
+  render();
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function (r) {
+        if (r.state === 'granted') findPlaces();
+      }).catch(function () {});
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
