@@ -62,7 +62,7 @@ body {
   font-size: 15px;
   line-height: 1.45;
   padding-top: calc(20px + env(safe-area-inset-top, 0px));
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -86,6 +86,7 @@ header { display: flex; align-items: baseline; justify-content: space-between; g
   border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer;
 }
 .live-btn[disabled] { opacity: .6; cursor: default; }
+#locStatus.warn { color: var(--bad); }
 
 .panel { display: flex; flex-direction: column; gap: 14px; }
 .group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -187,50 +188,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .check input { width: 18px; height: 18px; accent-color: var(--accent); }
 .saved { color: var(--ok); font-weight: 600; font-size: 13.5px; }
 .mynote { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; color: var(--ink); }
-
-/* Yeni düzen: karşılama, amaç kartları, tek satır süre, gizli filtreler, alt menü */
-header { align-items: center; }
-.brand { font-size: 28px; }
-.live-btn.small { padding: 7px 12px; font-size: 13.5px; border-radius: 999px; align-self: auto; }
-.locline { margin: -6px 0 0; font-size: 13.5px; color: var(--ink-2); }
-.locline.warn { color: var(--bad); }
-.hello { display: flex; flex-direction: column; gap: 2px; }
-.hello h2 { font-family: var(--font-display); font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; margin: 0; }
-.hello p { margin: 0; color: var(--ink-2); }
-.intents { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.icard {
-  text-align: left; background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px;
-  padding: 14px 12px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-height: 104px;
-  box-shadow: 0 1px 0 rgba(0,0,0,.03);
-}
-.icard .ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.icard .ic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.icard .it { font-family: var(--font-display); font-weight: 600; font-size: 16px; line-height: 1.2; }
-.icard .id { font-size: 12.5px; color: var(--ink-2); line-height: 1.3; }
-.icard[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.icard[aria-pressed="true"] .ic { background: rgba(255,255,255,.22); color: var(--accent-ink); }
-.icard[aria-pressed="true"] .id { color: var(--accent-ink); opacity: .9; }
-.scrollrow { display: flex; flex-wrap: wrap; gap: 8px; }
-.scrollrow .chip { flex: none; }
-.filterbar { display: flex; align-items: center; gap: 10px; }
-.badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11.5px; margin-left: 6px; }
-#filterPanel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-.flabel { list-style: none; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-top: 2px; }
-.card.featured { border: 1.5px solid var(--accent); background: linear-gradient(0deg, var(--surface), var(--surface)), var(--accent-soft); box-shadow: 0 6px 18px rgba(184, 80, 46, .14); padding: 14px; }
-.card.featured .name { font-size: 19px; }
-.card.featured .tile { width: 64px; height: 64px; }
-.card.featured { grid-template-columns: 64px minmax(0, 1fr); }
-.card { border-radius: 16px; }
-.sec, .mapbox { border-radius: 16px; }
-#map { height: 52vh; min-height: 300px; }
-.tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; background: var(--surface); border-top: 1px solid var(--line);
-  display: flex; justify-content: center; padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
-}
-.tabbar .tabs { display: flex; width: 100%; max-width: 640px; }
-.tab { flex: 1; background: transparent; border: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; color: var(--ink-2); cursor: pointer; font-size: 12px; font-weight: 600; border-radius: 12px; }
-.tab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.tab[aria-current="page"] { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -238,23 +195,25 @@ header { align-items: center; }
 <div class="wrap">
   <header>
     <h1 class="brand">Around</h1>
-    <button class="live-btn small" id="locBtn" type="button">Konumumu bul</button>
+    <p class="tagline">Beklerken yakınında ne var?</p>
   </header>
-  <p class="locline" id="locStatus" role="status">Yakındaki yerleri görmek için konumuna izin ver.</p>
 
   <div class="view" id="mainView">
-    <section class="view" id="exploreTop" aria-label="Keşfet">
-      <div class="hello">
-        <h2>Bugün ne yapıyorsun?</h2>
-        <p>Yakınındaki yerleri sana göre sıralayalım.</p>
-      </div>
-      <div class="intents" id="intentCards"></div>
-      <p class="hint" id="intentHint"></p>
+    <section class="notice" aria-label="Konum">
+      <p id="locStatus" role="status">Yakındaki yerleri görmek için konumuna izin ver.</p>
+      <button class="live-btn" id="locBtn" type="button">Konumumu bul</button>
+    </section>
 
+    <section class="panel" aria-label="Filtreler">
+      <div class="group">
+        <span class="label">Ne yapacaksın?</span>
+        <div class="chips" id="intentChips"></div>
+        <p class="hint" id="intentHint"></p>
+      </div>
       <div class="group">
         <span class="label">Ne kadar vaktin var?</span>
-        <div class="scrollrow" id="timeChips"></div>
-        <div class="custom" id="customBox" hidden>
+        <div class="chips" id="timeChips"></div>
+        <div class="custom">
           <div class="field">
             <label for="durInput">Kendi süren (dakika)</label>
             <input id="durInput" type="number" inputmode="numeric" min="1" max="720" placeholder="örn. 90">
@@ -266,41 +225,28 @@ header { align-items: center; }
         </div>
         <p class="hint" id="timeHint"></p>
       </div>
-
-      <div class="filterbar">
-        <button class="act" id="filterToggle" type="button" aria-expanded="false">Filtreler<span class="badge" id="filterBadge" hidden></span></button>
+      <div class="group">
+        <span class="label">Ne arıyorsun?</span>
+        <div class="chips" id="catChips"></div>
       </div>
-      <section class="panel" id="filterPanel" aria-label="Filtreler" hidden>
-        <div class="group">
-          <span class="label">Ne arıyorsun?</span>
-          <div class="chips" id="catChips"></div>
-        </div>
-        <div class="group">
-          <span class="label">Olsun</span>
-          <div class="chips" id="attrChips"></div>
-        </div>
-        <div class="group">
-          <span class="label">Fiyat</span>
-          <div class="chips" id="priceChips"></div>
-        </div>
-        <div class="group">
-          <span class="label">Sırala</span>
-          <div class="chips" id="sortChips"></div>
-        </div>
-      </section>
+      <div class="group">
+        <span class="label">Olsun</span>
+        <div class="chips" id="attrChips"></div>
+      </div>
+      <div class="group">
+        <span class="label">Fiyat</span>
+        <div class="chips" id="priceChips"></div>
+      </div>
+      <div class="group">
+        <span class="label">Sırala</span>
+        <div class="chips" id="sortChips"></div>
+      </div>
     </section>
 
     <section class="mapbox" id="mapBox" aria-label="Harita" hidden>
       <span class="label">Nerede?</span>
       <div class="mapwrap"><div id="map"></div></div>
       <div class="legend"><span><i class="cafe"></i>Kafe</span><span><i class="park"></i>Park</span><span><i class="activity"></i>Aktivite</span></div>
-    </section>
-
-    <section class="view" id="mineTop" aria-label="Bilgilerim" hidden>
-      <div class="hello">
-        <h2>Bilgilerim</h2>
-        <p>Mekanlara eklediğin priz, Wi-Fi ve not bilgileri burada toplanır. Şimdilik sadece bu cihazda saklanıyor.</p>
-      </div>
     </section>
 
     <p class="count" id="count"></p>
@@ -312,12 +258,6 @@ header { align-items: center; }
 
   <div class="view" id="detailView" hidden></div>
 </div>
-
-<nav class="tabbar" id="tabbar" aria-label="Ana menü"><div class="tabs">
-  <button class="tab" type="button" data-tab="explore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>Keşfet</button>
-  <button class="tab" type="button" data-tab="map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/></svg>Harita</button>
-  <button class="tab" type="button" data-tab="mine"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-3.5L6 20V5a1 1 0 0 1 1-1z"/></svg>Bilgilerim</button>
-</div></nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -335,13 +275,6 @@ header { align-items: center; }
     chat: 'Grup masası ve rahat oturma düzeni olan yerler öne çıkıyor. Sessiz ya da gürültülü olması puanı etkilemiyor.',
     calm: 'Sessiz yerler ve parklar öne çıkıyor.',
     move: 'Sadece park ve aktiviteler gösteriliyor.'
-  };
-  var INTENT_DESC = { study: 'Priz ve Wi-Fi olan yerler', chat: 'Rahat oturulan, grup masalı', calm: 'Sakin kafe ve parklar', move: 'Park ve aktiviteler' };
-  var INTENT_ICON = {
-    study: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z"/></svg>',
-    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H9l-3.5 3V13H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M19 9h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-1v3l-3.5-3H12"/></svg>',
-    calm: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c2-4 5-7 9-9"/></svg>',
-    move: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="13" cy="4.5" r="1.8"/><path d="M12 8l-3 3 2 3-2 6M12 8l3 3 3 1M11 14l3 2 1 4"/></svg>'
   };
   var LEVEL_TEXT = { high: 'Yüksek uygunluk', mid: 'Orta uygunluk', low: 'Düşük uygunluk' };
   var LEVEL_PILL = { high: 'ok', mid: 'mid', low: 'unk' };
@@ -374,7 +307,7 @@ header { align-items: center; }
     cats: { cafe: true, park: true, activity: true },
     open: false, plug: false, wifi: false, quiet: false,
     prices: { 0: false, 1: false, 2: false, 3: false },
-    sort: 'dist', detail: null, scrollY: 0, limit: PAGE, tab: 'explore', filtersOpen: false, customOpen: false
+    sort: 'dist', detail: null, scrollY: 0, limit: PAGE
   };
   var pos = null;
   var rawPlaces = [];
@@ -648,7 +581,7 @@ header { align-items: center; }
   function setStatus(text, warn) {
     var n = $('locStatus');
     n.textContent = text;
-    n.className = 'locline' + (warn ? ' warn' : '');
+    n.className = warn ? 'warn' : '';
   }
   async function findPlaces() {
     if (busy) return;
@@ -710,64 +643,31 @@ header { align-items: center; }
     renderControls();
     renderMain();
   }
-  function activeFilterCount() {
-    var n = 0;
-    if (!(state.cats.cafe && state.cats.park && state.cats.activity)) n++;
-    ['open', 'plug', 'wifi', 'quiet'].forEach(function (k) { if (state[k]) n++; });
-    if (state.prices[0] || state.prices[1] || state.prices[2] || state.prices[3]) n++;
-    return n;
-  }
   function renderControls() {
-    var ic = $('intentCards'); ic.textContent = '';
-    INTENTS.forEach(function (o) {
-      var b = el('button', 'icard');
-      b.type = 'button';
-      b.setAttribute('aria-pressed', state.intent === o.key ? 'true' : 'false');
-      var i = el('span', 'ic'); i.innerHTML = INTENT_ICON[o.key];
-      b.appendChild(i);
-      b.appendChild(el('span', 'it', o.label));
-      b.appendChild(el('span', 'id', INTENT_DESC[o.key]));
-      b.addEventListener('click', function () {
-        if (state.intent === o.key) {
-          state.intent = null;
-          if (state.sort === 'fit') state.sort = 'dist';
-        } else {
-          state.intent = o.key;
-          state.sort = 'fit';
-        }
-        state.limit = PAGE;
-        renderControls();
-        renderMain();
-      });
-      ic.appendChild(b);
+    fillChips('intentChips', INTENTS, function (o) { return state.intent === o.key; }, function (o) {
+      if (state.intent === o.key) {
+        state.intent = null;
+        if (state.sort === 'fit') state.sort = 'dist';
+      } else {
+        state.intent = o.key;
+        state.sort = 'fit';
+      }
     });
-    $('intentHint').textContent = state.intent ? INTENT_HINT[state.intent] : '';
-    $('intentHint').hidden = !state.intent;
+    $('intentHint').textContent = state.intent ? INTENT_HINT[state.intent] : 'İstersen seç, liste buna göre sıralanır.';
     var t = $('timeChips'); t.textContent = '';
     TIMES.forEach(function (o) {
-      t.appendChild(chip(o.label, !state.custom && !state.customOpen && state.minutes === o.min, function () {
+      t.appendChild(chip(o.label, !state.custom && state.minutes === o.min, function () {
         $('durInput').value = '';
         $('untilInput').value = '';
-        state.customOpen = false;
         setMinutes(o.min, false);
       }));
     });
-    t.appendChild(chip('Özel', state.custom || state.customOpen, function () {
-      state.customOpen = !state.customOpen;
-      renderControls();
-    }));
-    $('customBox').hidden = !(state.custom || state.customOpen);
     $('timeHint').textContent = 'Toplam ' + fmtDur(state.minutes) + ' var. Gidiş-dönüş yürüyüş ve en az ' + STAY_MIN + ' dk oturma sayılıyor, tek yön en fazla ' + maxWalk() + ' dk yürüyüş.';
     fillChips('catChips', CATS, function (o) { return state.cats[o.key]; }, function (o) { state.cats[o.key] = !state.cats[o.key]; });
     fillChips('attrChips', ATTRS, function (o) { return state[o.key]; }, function (o) { state[o.key] = !state[o.key]; });
     fillChips('priceChips', PRICES, function (o) { return state.prices[o.key]; }, function (o) { state.prices[o.key] = !state.prices[o.key]; });
     var sorts = state.intent ? [{ key: 'fit', label: 'Uygunluk' }].concat(SORTS) : SORTS;
     fillChips('sortChips', sorts, function (o) { return state.sort === o.key; }, function (o) { state.sort = o.key; });
-    $('filterPanel').hidden = !state.filtersOpen;
-    $('filterToggle').setAttribute('aria-expanded', state.filtersOpen ? 'true' : 'false');
-    var fc = activeFilterCount();
-    $('filterBadge').hidden = !fc;
-    $('filterBadge').textContent = String(fc);
   }
   function cmp(a, b) {
     if (state.sort === 'fit' && state.intent) {
@@ -806,8 +706,8 @@ header { align-items: center; }
     return a;
   }
 
-  function card(p, n, featured) {
-    var li = el('li', 'card' + (featured ? ' featured' : ''));
+  function card(p, n) {
+    var li = el('li', 'card');
     var tile = el('div', 'tile ' + p.cat);
     tile.innerHTML = ICONS[p.cat];
     li.appendChild(tile);
@@ -888,60 +788,25 @@ header { align-items: center; }
   }
 
   function renderMain() {
-    var tab = state.tab;
-    $('exploreTop').hidden = tab !== 'explore';
-    $('mineTop').hidden = tab !== 'mine';
-    $('mapBox').hidden = true;
-    var navs = document.querySelectorAll('.tab');
-    for (var k = 0; k < navs.length; k++) {
-      if (navs[k].getAttribute('data-tab') === tab) navs[k].setAttribute('aria-current', 'page'); else navs[k].removeAttribute('aria-current');
-    }
-    var list = $('list'); list.textContent = '';
-
-    if (tab === 'mine') {
-      var mine = places.filter(function (p) { return local[p.id]; }).sort(function (a, b) { return a.dist - b.dist; });
-      var total = Object.keys(local).length;
-      $('count').textContent = total ? (mine.length + ' yer · bu cihazda ' + total + ' mekan için bilgin kayıtlı') : '';
-      if (!mine.length) {
-        list.appendChild(el('li', 'empty', total ? 'Kayıtlı mekanların şu an yakınında değil. Konumunu yenilersen yakındakiler burada görünür.' : 'Henüz bilgi eklemedin. Bir mekanın detayında priz, Wi-Fi, ses ve not girince burada toplanır.'));
-      } else {
-        mine.forEach(function (p, i) { list.appendChild(card(p, i + 1, false)); });
-      }
-      $('moreBtn').hidden = true;
-      return;
-    }
-
     var out = getVisible();
+    var list = $('list'); list.textContent = '';
     var shown = out.slice(0, state.limit);
     var sortKey = (state.sort === 'fit' && !state.intent) ? 'dist' : state.sort;
     if (!pos) {
       $('count').textContent = '';
-      list.appendChild(el('li', 'empty', 'Konumunu bulunca yakındaki kafeler, parklar ve aktiviteler burada görünecek. Yukarıdaki "Konumumu bul" düğmesine bas.'));
+      list.appendChild(el('li', 'empty', 'Konumunu bulunca yakındaki kafeler, parklar ve aktiviteler burada görünecek.'));
       $('moreBtn').hidden = true;
-      if (tab === 'map') drawMap([]);
+      drawMap([]);
       return;
     }
     $('count').textContent = out.length + ' yer · ' + SORT_TEXT[sortKey];
     if (!out.length) {
       list.appendChild(el('li', 'empty', rawPlaces.length ? 'Bu süreye, amaca ve filtrelere uyan yer yok. Süreyi uzat ya da filtrelerden bazılarını kaldır.' : 'Çevrende kayıtlı yer bulunamadı.'));
     } else {
-      shown.forEach(function (p, i) {
-        if (i === 0 && tab === 'explore') {
-          list.appendChild(el('li', 'flabel', state.intent ? 'Senin için en uygun' : (state.sort === 'dist' ? 'Sana en yakın' : 'Öne çıkan')));
-        }
-        list.appendChild(card(p, i + 1, i === 0 && tab === 'explore'));
-      });
+      shown.forEach(function (p, i) { list.appendChild(card(p, i + 1)); });
     }
     $('moreBtn').hidden = out.length <= shown.length;
-    if (tab === 'map') drawMap(shown.map(function (p, i) { return { p: p, n: i + 1 }; }));
-  }
-
-  function setTab(t) {
-    state.tab = t;
-    state.limit = PAGE;
-    if (state.detail) { state.detail = null; try { location.hash = 'liste'; } catch (e) {} }
-    render();
-    window.scrollTo(0, 0);
+    drawMap(shown.map(function (p, i) { return { p: p, n: i + 1 }; }));
   }
 
   /* Detay ekranı */
@@ -1086,13 +951,11 @@ header { align-items: center; }
     if (p) {
       $('mainView').hidden = true;
       $('detailView').hidden = false;
-      $('tabbar').hidden = true;
       renderDetail(p);
     } else {
       state.detail = null;
       $('detailView').hidden = true;
       $('mainView').hidden = false;
-      $('tabbar').hidden = false;
       renderMain();
     }
   }
@@ -1133,10 +996,6 @@ header { align-items: center; }
   });
   $('moreBtn').addEventListener('click', function () { state.limit += PAGE; renderMain(); });
   $('locBtn').addEventListener('click', findPlaces);
-  $('filterToggle').addEventListener('click', function () { state.filtersOpen = !state.filtersOpen; renderControls(); });
-  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (b) {
-    b.addEventListener('click', function () { setTab(b.getAttribute('data-tab')); });
-  });
 
   loadLocal();
   renderControls();
