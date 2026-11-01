@@ -300,7 +300,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   var WALK_M_PER_MIN = 80;
   var PAGE = 40;
   var LOCAL_KEY = 'around-local-v1';
-  var ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  var ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 
   var state = {
     intent: null, minutes: 60, custom: false,
@@ -544,35 +544,38 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
       navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
     });
   }
+  var lastNetErr = '';
+  function tryEndpoint(url, q) {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 30000);
+    return fetch(url + '?data=' + encodeURIComponent(q), { signal: ctl.signal })
+      .then(function (r) {
+        if (!r.ok) throw new Error(url.split('/')[2] + ' → HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        clearTimeout(timer);
+        if (!j || !j.elements) throw new Error(url.split('/')[2] + ' → boş yanıt');
+        return j.elements;
+      })
+      .catch(function (e) {
+        clearTimeout(timer);
+        var m = url.split('/')[2] + ' → ' + (e && e.name === 'AbortError' ? 'zaman aşımı' : (e && e.message) || 'bağlantı hatası');
+        lastNetErr += (lastNetErr ? ' | ' : '') + m;
+        throw new Error(m);
+      });
+  }
   async function queryOverpass(lat, lon) {
-    var R = 2500;
+    var R = 2000;
     var around = '(around:' + R + ',' + lat + ',' + lon + ')';
-    var q = '[out:json][timeout:25];(' +
+    var q = '[out:json][timeout:20];(' +
       'nwr["amenity"="cafe"]' + around + ';' +
       'nwr["leisure"~"^(park|garden|playground)$"]["name"]' + around + ';' +
       'nwr["tourism"~"^(museum|gallery|attraction)$"]["name"]' + around + ';' +
       ');out center tags;';
-    var lastErr = null;
-    for (var i = 0; i < ENDPOINTS.length; i++) {
-      var ctl = new AbortController();
-      var timer = setTimeout(function () { ctl.abort(); }, 28000);
-      try {
-        var r = await fetch(ENDPOINTS[i], {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'data=' + encodeURIComponent(q),
-          signal: ctl.signal
-        });
-        if (!r.ok) throw new Error('http ' + r.status);
-        var j = await r.json();
-        clearTimeout(timer);
-        return j.elements || [];
-      } catch (e) {
-        clearTimeout(timer);
-        lastErr = e;
-      }
-    }
-    throw lastErr || new Error('ağ');
+    lastNetErr = '';
+    // Tüm sunucuları aynı anda dene, ilk başarılı yanıtı kullan
+    return Promise.any(ENDPOINTS.map(function (u) { return tryEndpoint(u, q); }));
   }
 
   function setStatus(text, warn) {
@@ -609,7 +612,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
       state.limit = PAGE;
       setStatus(found.length + ' yer bulundu · konum doğruluğu yaklaşık ' + pos.acc + ' m');
     } catch (e) {
-      setStatus('Yakındaki yerler alınamadı. Sunucu meşgul olabilir, biraz sonra tekrar dene.', true);
+      setStatus('Yakındaki yerler alınamadı. Sunucular meşgul olabilir, biraz sonra tekrar dene. Teknik not: ' + (lastNetErr || (e && e.message) || 'bilinmiyor'), true);
     }
     btn.textContent = 'Konumu yenile';
     btn.disabled = false;
